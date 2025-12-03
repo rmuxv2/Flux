@@ -10,6 +10,7 @@ local imgui = require 'imgui'
 local encoding = require 'encoding'
 local memory = require 'memory'
 local ffi = require 'ffi'
+local lfs = require 'lfs'
 
 encoding.default = 'CP1251'
 local u8 = encoding.UTF8
@@ -29,7 +30,9 @@ local CONSTANTS = {
     HIGH_SPEED_THRESHOLD = 150.0,
     GROUND_STICK_FORCE = 0.15,
     LOG_FILE = "moonloader/Flux_log.txt",
-    CONFIG_FILE = "moonloader/Flux_keybinds.cfg"
+    CONFIG_FILE = "moonloader/Flux_keybinds.cfg",
+    SETTINGS_DIR = "moonloader/config/Flux/",
+    DEFAULT_SETTINGS = "default.cfg"
 }
 
 -- ===============================================================================
@@ -86,6 +89,10 @@ local Features = {
         godMode = false,
         noBikeFall = false,
         quickStop = false
+    },
+    Config = {
+        list = {},
+        selected = 0
     }
 }
 
@@ -107,7 +114,9 @@ local UI_Buffers = {
     megaJump = imgui.ImBool(false),
     bmxMegaJump = imgui.ImBool(false),
     godMode = imgui.ImBool(false),
-    reconnectDelay = imgui.ImInt(5)
+    reconnectDelay = imgui.ImInt(5),
+    configName = imgui.ImBuffer(256),
+    configSelect = imgui.ImInt(0)
 }
 
 -- ===============================================================================
@@ -171,6 +180,93 @@ function writeLog(message)
     if file then
         file:write(os.date("[%Y-%m-%d %H:%M:%S] ") .. message .. "\n")
         file:close()
+    end
+end
+
+function ensureConfigDir()
+    if not lfs.attributes("moonloader/config", "mode") then lfs.mkdir("moonloader/config") end
+    if not lfs.attributes(CONSTANTS.SETTINGS_DIR, "mode") then lfs.mkdir(CONSTANTS.SETTINGS_DIR) end
+end
+
+function refreshConfigList()
+    ensureConfigDir()
+    Features.Config.list = {}
+    for file in lfs.dir(CONSTANTS.SETTINGS_DIR) do
+        if file ~= "." and file ~= ".." and file:match("%.cfg$") then
+            table.insert(Features.Config.list, file)
+        end
+    end
+end
+
+function syncUIBuffers()
+    UI_Buffers.damageMult.v = Features.Car.damageMult
+    UI_Buffers.targetSpeed.v = Features.Car.currentTargetSpeed
+    
+    local dTypes = {hold=0, toggle=1, always=2}
+    if dTypes[Features.Car.driftType] then UI_Buffers.driftType.v = dTypes[Features.Car.driftType] end
+    
+    UI_Buffers.boxThickness.v = Features.Visual.boxThickness
+    UI_Buffers.infoBar.v = Features.Visual.infoBarEnabled
+    UI_Buffers.speedIncrement.v = Features.Car.speedIncrement
+    UI_Buffers.antiBoom.v = Features.Car.antiBoom
+    UI_Buffers.quickStop.v = Features.Misc.quickStop
+    UI_Buffers.gmWheels.v = Features.Car.gmWheels
+    UI_Buffers.groundStick.v = Features.Car.groundStick
+    UI_Buffers.noFall.v = Features.Misc.noFall
+    UI_Buffers.oxygen.v = Features.Misc.oxygen
+    UI_Buffers.megaJump.v = Features.Misc.megaJump
+    UI_Buffers.bmxMegaJump.v = Features.Misc.bmxMegaJump
+    UI_Buffers.godMode.v = Features.Misc.godMode
+    UI_Buffers.reconnectDelay.v = Features.Global.reconnectDelay
+end
+
+function saveSettings(filename)
+    ensureConfigDir()
+    local name = filename or CONSTANTS.DEFAULT_SETTINGS
+    local path = CONSTANTS.SETTINGS_DIR .. name
+    local file = io.open(path, "w")
+    if file then
+        for catName, catTable in pairs(Features) do
+            if catName ~= "Config" then
+                for key, value in pairs(catTable) do
+                    if type(value) ~= "function" and type(value) ~= "table" and key ~= "patch_showCrosshairInstantly" then
+                        file:write(catName .. "." .. key .. "=" .. tostring(value) .. "\n")
+                    end
+                end
+            end
+        end
+        file:close()
+        sampAddChatMessage("{00FF00}[Flux] Settings saved to " .. name, -1)
+        refreshConfigList()
+    end
+end
+
+function loadSettings(filename)
+    local path = CONSTANTS.SETTINGS_DIR .. (filename or CONSTANTS.DEFAULT_SETTINGS)
+    
+    -- Fallback for legacy settings file
+    if not filename and not lfs.attributes(path, "mode") then
+        local oldPath = "moonloader/Flux_settings.cfg"
+        if lfs.attributes(oldPath, "mode") then path = oldPath end
+    end
+
+    local file = io.open(path, "r")
+    if file then
+        for line in file:lines() do
+            local cat, key, value = line:match("([^%.]+)%.([^=]+)=(.+)")
+            if cat and key and value and Features[cat] then
+                if value == "true" then value = true
+                elseif value == "false" then value = false
+                elseif tonumber(value) then value = tonumber(value) end
+                Features[cat][key] = value
+            end
+        end
+        file:close()
+        syncUIBuffers()
+        writeLog("Settings loaded from " .. path)
+        if filename then sampAddChatMessage("{00FF00}[Flux] Loaded config: " .. filename, -1) end
+    else
+        if filename then sampAddChatMessage("{FF0000}[Flux] Config not found: " .. filename, -1) end
     end
 end
 
@@ -402,6 +498,10 @@ function imgui.OnDrawFrame()
             if imgui.Button(Features.Global.activeTab == 3 and u8'> Car' or u8'Car', imgui.ImVec2(-1, 40)) then Features.Global.activeTab = 3 end
             if imgui.Button(Features.Global.activeTab == 4 and u8'> Misc' or u8'Misc', imgui.ImVec2(-1, 40)) then Features.Global.activeTab = 4 end
             if imgui.Button(Features.Global.activeTab == 5 and u8'> Keybinds' or u8'Keybinds', imgui.ImVec2(-1, 40)) then Features.Global.activeTab = 5 end
+            if imgui.Button(Features.Global.activeTab == 7 and u8'> Configs' or u8'Configs', imgui.ImVec2(-1, 40)) then 
+                Features.Global.activeTab = 7 
+                refreshConfigList()
+            end
             if imgui.Button(Features.Global.activeTab == 6 and u8'> About' or u8'About', imgui.ImVec2(-1, 40)) then Features.Global.activeTab = 6 end
             
             imgui.Spacing()
@@ -602,6 +702,8 @@ function imgui.OnDrawFrame()
             imgui.Text("Reconnect Delay (sec):")
             if imgui.SliderInt("##recon_delay", UI_Buffers.reconnectDelay, 1, 30) then Features.Global.reconnectDelay = UI_Buffers.reconnectDelay.v end
             if imgui.Button(u8'Reconnect Now', imgui.ImVec2(-1, 25)) then performReconnect(Features.Global.reconnectDelay) end
+            imgui.Spacing()
+            if imgui.Button(u8'Save Default Settings', imgui.ImVec2(-1, 25)) then saveSettings() end
             imgui.Columns(1)
 
         elseif Features.Global.activeTab == 5 then -- KEYBINDS
@@ -650,11 +752,83 @@ function imgui.OnDrawFrame()
                 end
             end
 
+        elseif Features.Global.activeTab == 7 then -- CONFIGURATION
+            CenterText(u8'CONFIGURATION MANAGER')
+            imgui.Separator()
+            imgui.Spacing()
+            
+            imgui.Text(u8"Create New Config:")
+            imgui.PushItemWidth(-1)
+            imgui.InputText(u8'##configname', UI_Buffers.configName)
+            imgui.PopItemWidth()
+            
+            if imgui.Button(u8'Create & Save', imgui.ImVec2(-1, 30)) then
+                local name = UI_Buffers.configName.v
+                if #name > 0 then
+                    if not name:match("%.cfg$") then name = name .. ".cfg" end
+                    saveSettings(name)
+                else
+                    sampAddChatMessage("{FF0000}[Flux] Please enter a config name!", -1)
+                end
+            end
+            
+            imgui.Spacing()
+            imgui.Separator()
+            imgui.Spacing()
+            
+            imgui.Text(u8"Available Configs:")
+            local items = Features.Config.list
+            
+            -- Scrollable List
+            imgui.BeginChild("ConfigList", imgui.ImVec2(-1, 150), true)
+            if #items > 0 then
+                for i, name in ipairs(items) do
+                    if imgui.Selectable(name, UI_Buffers.configSelect.v == i - 1) then
+                        UI_Buffers.configSelect.v = i - 1
+                    end
+                end
+            else
+                imgui.TextDisabled(u8"No configurations found.")
+            end
+            imgui.EndChild()
+            
+            imgui.Spacing()
+            
+            if #items > 0 then
+                if imgui.Button(u8'Load Selected', imgui.ImVec2(150, 30)) then
+                    local selectedName = items[UI_Buffers.configSelect.v + 1]
+                    if selectedName then loadSettings(selectedName) end
+                end
+                imgui.SameLine()
+                if imgui.Button(u8'Delete Selected', imgui.ImVec2(150, 30)) then
+                    local selectedName = items[UI_Buffers.configSelect.v + 1]
+                    if selectedName then
+                        local path = CONSTANTS.SETTINGS_DIR .. selectedName
+                        os.remove(path)
+                        refreshConfigList()
+                        -- Reset selection if out of bounds
+                        if UI_Buffers.configSelect.v >= #Features.Config.list then
+                            UI_Buffers.configSelect.v = math.max(0, #Features.Config.list - 1)
+                        end
+                        sampAddChatMessage("{FFFF00}[Flux] Deleted config: " .. selectedName, -1)
+                    end
+                end
+                imgui.SameLine()
+                if imgui.Button(u8'Overwrite Selected', imgui.ImVec2(150, 30)) then
+                    local selectedName = items[UI_Buffers.configSelect.v + 1]
+                    if selectedName then saveSettings(selectedName) end
+                end
+            end
+            
+            imgui.Spacing()
+            imgui.Separator()
+            imgui.TextWrapped(u8"Configs are saved in: " .. CONSTANTS.SETTINGS_DIR)
+
         elseif Features.Global.activeTab == 6 then -- ABOUT
             CenterText(u8'ABOUT FLUX')
             imgui.Separator()
             imgui.Text(u8'Flux - Multi-purpose Utility Script')
-            imgui.Text(u8'Version: 1.3.0 (Skeleton Update)')
+            imgui.Text(u8'Version: 1.4.0 (Config Update)')
             imgui.Text(u8'Author: rmux')
         end
         imgui.EndChild()
@@ -867,6 +1041,9 @@ function main()
         writeLog("Keybinds loaded from config")
     end
     
+    ensureConfigDir()
+    loadSettings()
+
     while not isSampLoaded() or not isSampAvailable() do wait(100) end
     
     apply_flux_style()
