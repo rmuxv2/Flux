@@ -1,6 +1,6 @@
 script_name("Flux")
 script_author("rmux")
-script_version("1.3.0")
+script_version("1.5.0")
 script_dependencies("SAMP")
 
 require "lib.moonloader"
@@ -445,35 +445,57 @@ function apply_flux_style()
     local colors = style.Colors
     local clr = imgui.Col
     local ImVec4 = imgui.ImVec4
-    -- FLUX THEME
-    style.WindowRounding = 8.0
+
+    -- FLUX THEME (Modernized)
+    style.WindowRounding = 10.0
     style.WindowTitleAlign = imgui.ImVec2(0.5, 0.5)
-    style.ChildWindowRounding = 6.0
-    style.FrameRounding = 4.0
-    style.ItemSpacing = imgui.ImVec2(8, 6)
-    style.ScrollbarSize = 10.0
-    style.ScrollbarRounding = 9.0
-    style.GrabMinSize = 10.0
-    style.GrabRounding = 4.0
-    colors[clr.Text] = ImVec4(0.95, 0.95, 0.95, 1.00)
-    colors[clr.WindowBg] = ImVec4(0.10, 0.10, 0.12, 0.98)
-    colors[clr.ChildWindowBg] = ImVec4(0.12, 0.12, 0.14, 1.00)
-    colors[clr.Border] = ImVec4(0.43, 0.20, 0.70, 0.50)
-    colors[clr.FrameBg] = ImVec4(0.20, 0.18, 0.24, 0.54)
-    colors[clr.FrameBgHovered] = ImVec4(0.43, 0.20, 0.70, 0.40)
-    colors[clr.FrameBgActive] = ImVec4(0.43, 0.20, 0.70, 0.67)
-    colors[clr.TitleBg] = ImVec4(0.10, 0.10, 0.12, 1.00)
-    colors[clr.TitleBgActive] = ImVec4(0.10, 0.10, 0.12, 1.00)
-    colors[clr.CheckMark] = ImVec4(0.60, 0.30, 0.90, 1.00)
-    colors[clr.SliderGrab] = ImVec4(0.60, 0.30, 0.90, 1.00)
-    colors[clr.SliderGrabActive] = ImVec4(0.75, 0.40, 0.95, 1.00)
-    colors[clr.Button] = ImVec4(0.25, 0.20, 0.35, 0.60)
-    colors[clr.ButtonHovered] = ImVec4(0.43, 0.20, 0.70, 0.70)
-    colors[clr.ButtonActive] = ImVec4(0.43, 0.20, 0.70, 1.00)
-    colors[clr.Header] = ImVec4(0.43, 0.20, 0.70, 0.50)
-    colors[clr.HeaderHovered] = ImVec4(0.46, 0.20, 0.70, 0.80)
-    colors[clr.HeaderActive] = ImVec4(0.43, 0.20, 0.70, 1.00)
-    colors[clr.Separator] = ImVec4(0.43, 0.20, 0.70, 0.50)
+    style.ChildWindowRounding = 8.0
+    style.FrameRounding = 6.0
+    style.ItemSpacing = imgui.ImVec2(10, 8)
+    style.ScrollbarSize = 12.0
+    style.ScrollbarRounding = 12.0
+    style.GrabMinSize = 12.0
+    style.GrabRounding = 6.0
+    
+    -- Darker, cleaner background
+    colors[clr.Text] = ImVec4(0.90, 0.90, 0.93, 1.00)
+    colors[clr.TextDisabled] = ImVec4(0.40, 0.40, 0.45, 1.00)
+    colors[clr.WindowBg] = ImVec4(0.07, 0.07, 0.09, 0.98)
+    colors[clr.ChildWindowBg] = ImVec4(0.10, 0.10, 0.12, 1.00)
+    colors[clr.PopupBg] = ImVec4(0.07, 0.07, 0.09, 1.00)
+    colors[clr.Border] = ImVec4(0.25, 0.25, 0.30, 0.50)
+    colors[clr.BorderShadow] = ImVec4(0.00, 0.00, 0.00, 0.00)
+    
+    -- Input fields
+    colors[clr.FrameBg] = ImVec4(0.15, 0.15, 0.18, 1.00)
+    colors[clr.FrameBgHovered] = ImVec4(0.20, 0.20, 0.24, 1.00)
+    colors[clr.FrameBgActive] = ImVec4(0.25, 0.25, 0.30, 1.00)
+    
+    -- Title bar
+    colors[clr.TitleBg] = ImVec4(0.07, 0.07, 0.09, 1.00)
+    colors[clr.TitleBgActive] = ImVec4(0.07, 0.07, 0.09, 1.00)
+    colors[clr.TitleBgCollapsed] = ImVec4(0.07, 0.07, 0.09, 1.00)
+    
+    -- Accents (Vibrant Purple)
+    local accent = ImVec4(0.58, 0.24, 0.85, 1.00)
+    local accent_hover = ImVec4(0.65, 0.30, 0.90, 1.00)
+    local accent_active = ImVec4(0.75, 0.40, 0.95, 1.00)
+
+    colors[clr.CheckMark] = accent
+    colors[clr.SliderGrab] = accent
+    colors[clr.SliderGrabActive] = accent_active
+    colors[clr.Button] = ImVec4(0.15, 0.15, 0.18, 1.00) -- Darker buttons by default
+    colors[clr.ButtonHovered] = accent_hover
+    colors[clr.ButtonActive] = accent_active
+    colors[clr.Header] = accent
+    colors[clr.HeaderHovered] = accent_hover
+    colors[clr.HeaderActive] = accent_active
+    colors[clr.Separator] = ImVec4(0.25, 0.25, 0.30, 0.50)
+    colors[clr.ResizeGrip] = ImVec4(0.26, 0.59, 0.98, 0.25)
+    colors[clr.ResizeGripHovered] = ImVec4(0.26, 0.59, 0.98, 0.67)
+    colors[clr.ResizeGripActive] = ImVec4(0.26, 0.59, 0.98, 0.95)
+    colors[clr.TextSelectedBg] = ImVec4(0.26, 0.59, 0.98, 0.35)
+    colors[clr.ModalWindowDarkening] = ImVec4(0.80, 0.80, 0.80, 0.35)
 end
 
 function CenterText(text)
@@ -828,7 +850,7 @@ function imgui.OnDrawFrame()
             CenterText(u8'ABOUT FLUX')
             imgui.Separator()
             imgui.Text(u8'Flux - Multi-purpose Utility Script')
-            imgui.Text(u8'Version: 1.4.0 (Config Update)')
+            imgui.Text(u8'Version: 1.5.0 (UI refresh)')
             imgui.Text(u8'Author: rmux')
         end
         imgui.EndChild()
